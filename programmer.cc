@@ -781,7 +781,7 @@ void reset_inout()
 	pinMode(SUNXI_ICE_CDONE,   INPUT);
 	pinMode(SUNXI_ICE_MOSI,    INPUT);
 	pinMode(SUNXI_ICE_MISO,    INPUT);
-	pinMode(LOAD_FROM_FLASH, INPUT);
+	pinMode(LOAD_FROM_FLASH,   INPUT);
 	pinMode(SUNXI_ICE_CRESET,  INPUT);
 	pinMode(SUNXI_ICE_CS,      INPUT);
 	pinMode(SUNXI_ICE_SELECT,  INPUT);

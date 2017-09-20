@@ -53,6 +53,11 @@ void sunxiMode(int pinInt, int dir)
 	enum SUNXI_GPIO pin = (enum SUNXI_GPIO) pinInt;
 	short int offset = 0, pin_offset=0;
 	switch (pin) {
+	case PD0: case PD1: case PD2: case PD3:
+	case PD4: case PD5: case PD6: case PD7:
+		offset=PD_CFG0;
+		pin_offset= (pin-PD0)<<2;
+		break;
 	case PE0: case PE1: case PE2: case PE3:
 	case PE4: case PE5: case PE6: case PE7:
 		offset=PE_CFG0;
@@ -105,6 +110,12 @@ void sunxiWrite(int pin, int val)
 {
 	short int pin_offset=0, offset=0;
 	switch (pin) {
+	case PD0: case PD1: case PD2: case PD3:
+	case PD4: case PD5: case PD6: case PD7:
+	case PD8: case PD9: case PD10: case PD11:
+		offset=PD_DAT;
+		pin_offset= (pin-PD0);
+		break;
 	case PE0: case PE1: case PE2: case PE3:
 	case PE4: case PE5: case PE6: case PE7:
 	case PE8: case PE9: case PE10: case PE11:
@@ -147,6 +158,12 @@ int sunxiRead(int pin)
 {
 	short int pin_offset=0, offset=0;
 	switch (pin) {
+	case PD0: case PD1: case PD2: case PD3:
+	case PD4: case PD5: case PD6: case PD7:
+	case PD8: case PD9: case PD10: case PD11:
+		offset=PD_DAT;
+		pin_offset= (pin-PD0);
+		break;
 	case PE0: case PE1: case PE2: case PE3:
 	case PE4: case PE5: case PE6: case PE7:
 	case PE8: case PE9: case PE10: case PE11:
