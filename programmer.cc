@@ -8,330 +8,11 @@
 #include <assert.h>
 #include <vector>
 
-#ifdef SUNXI
 using namespace std;
 #include "libSunxi.h"
-#endif
 
 bool verbose = false;
 bool ftdi_verbose = false;
-
-#ifdef RASPI
-
-#  include <wiringPi.h>
-
-#  define RPI_ICE_CLK      7 // PIN  7, GPIO.7
-#  define RPI_ICE_CDONE    2 // PIN 13, GPIO.2
-#  define RPI_ICE_MOSI    21 // PIN 29, GPIO.21
-#  define RPI_ICE_MISO    22 // PIN 31, GPIO.22
-#  define LOAD_FROM_FLASH 23 // PIN 33, GPIO.23
-#  define RPI_ICE_CRESET  25 // PIN 37, GPIO.25
-#  define RPI_ICE_CS      10 // PIN 24, CE0
-#  define RPI_ICE_SELECT  26 // PIN 32, GPIO.26
-
-#  define RASPI_D8   0 // PIN 11, GPIO.0
-#  define RASPI_D7   1 // PIN 12, GPIO.1
-#  define RASPI_D6   3 // PIN 15, GPIO.3
-#  define RASPI_D5   4 // PIN 16, GPIO.4
-#  define RASPI_D4  12 // PIN 19, MOSI
-#  define RASPI_D3  13 // PIN 21, MISO
-#  define RASPI_D2  11 // PIN 26, CE1
-#  define RASPI_D1  24 // PIN 35, GPIO.24
-#  define RASPI_D0  27 // PIN 36, GPIO.27
-#  define RASPI_DIR 28 // PIN 38, GPIO.28
-#  define RASPI_CLK 29 // PIN 40, GPIO.29
-
-void digitalSync(int usec_delay)
-{
-	usleep(usec_delay);
-}
-
-#endif
-
-#ifdef USBMOD
-
-#  include <ftdi.h>
-
-// ADBUS0  0     BDBUS0 16
-// ADBUS1  1     BDBUS1 17
-// ADBUS2  2     BDBUS2 18
-// ADBUS3  3     BDBUS3 19
-// ADBUS4  4     BDBUS4 20
-// ADBUS5  5     BDBUS5 21
-// ADBUS6  6     BDBUS6 22
-// ADBUS7  7     BDBUS7 23
-// ACBUS0  8     BCBUS0 24
-// ACBUS1  9     BCBUS1 25
-// ACBUS2 10     BCBUS2 26
-// ACBUS3 11     BCBUS3 27
-// ACBUS4 12     BCBUS4 28
-// ACBUS5 13     BCBUS5 29
-// ACBUS6 14     BCBUS6 30
-// ACBUS7 15     BCBUS7 31
-
-#  define RPI_ICE_CLK     16 // PIN  7
-#  define RPI_ICE_CDONE   22 // PIN 13
-#  define RPI_ICE_MOSI    17 // PIN 29
-#  define RPI_ICE_MISO    18 // PIN 31
-#  define LOAD_FROM_FLASH 21 // PIN 33
-#  define RPI_ICE_CRESET  23 // PIN 37
-#  define RPI_ICE_CS      20 // PIN 24
-#  define RPI_ICE_SELECT  19 // PIN 32
-
-#  define RASPI_D8  12 // PIN 11
-#  define RASPI_D7  14 // PIN 12
-#  define RASPI_D6   6 // PIN 15
-#  define RASPI_D5   7 // PIN 16
-#  define RASPI_D4   1 // PIN 19
-#  define RASPI_D3   2 // PIN 21
-#  define RASPI_D2  10 // PIN 26
-#  define RASPI_D1   3 // PIN 35
-#  define RASPI_D0  13 // PIN 36
-#  define RASPI_DIR  4 // PIN 38
-#  define RASPI_CLK  5 // PIN 40
-
-#  define INPUT 0
-#  define OUTPUT 1
-
-#  define LOW 0
-#  define HIGH 1
-
-struct ftdi_context ftdia, ftdib;
-uint32_t ftdistate_dir, ftdistate_val;
-
-void my_ftdi_send(struct ftdi_context *ftdi, uint8_t *buffer, int len)
-{
-	char interface = ftdi == &ftdia ? 'A' : ftdi == &ftdib ? 'B' : 'X';
-
-	if (ftdi_verbose) {
-		printf("ftdi-send-%c>", interface);
-		for (int i = 0; i < len; i++)
-			printf(" %02x", buffer[i]);
-		printf("\n");
-	}
-
-	while (len > 0) {
-		int rc = ftdi_write_data(ftdi, buffer, len);
-		if (rc <= 0) {
-			fprintf(stderr, "Communication error. (ftdi interface %c write rc=%d, %s)\n",
-					interface, rc, ftdi_get_error_string(ftdi));
-			exit(1);
-		}
-		buffer += rc;
-		len -= rc;
-	}
-}
-
-void my_ftdi_recv(struct ftdi_context *ftdi, uint8_t *buffer, int len)
-{
-	char interface = ftdi == &ftdia ? 'A' : ftdi == &ftdib ? 'B' : 'X';
-
-	int retry_cnt = 0;
-	int offset = 0;
-
-	while (offset < len)
-	{
-		int rc = ftdi_read_data(ftdi, buffer + offset, len - offset);
-
-		if (rc == 0)
-		{
-			if (++retry_cnt > 10)
-			{
-				if (ftdi_verbose) {
-					printf("ftdi-partial-recv-%c>", interface);
-					for (int i = 0; i < offset; i++)
-						printf(" %02x", buffer[i]);
-					printf("\n");
-				}
-				fprintf(stderr, "FTDI interface %c read timeout after %d / %d bytes.\n",
-						interface, offset, len);
-				exit(1);
-			}
-			if (retry_cnt > 1)
-				fprintf(stderr, "FTDI interface %c read timeout after %d / %d bytes, keep waiting..\n",
-						interface, offset, len);
-			usleep(100000);
-			continue;
-		}
-
-		if (rc < 0) {
-			fprintf(stderr, "Communication error. (ftdi interface %c read rc=%d, %s)\n",
-					interface, rc, ftdi_get_error_string(ftdi));
-			exit(1);
-		}
-
-		retry_cnt = 0;
-		offset += rc;
-	}
-
-	if (ftdi_verbose) {
-		printf("ftdi-recv-%c>", interface);
-		for (int i = 0; i < len; i++)
-			printf(" %02x", buffer[i]);
-		printf("\n");
-	}
-}
-
-void my_ftdi_setup(struct ftdi_context *ftdi, enum ftdi_interface interface, const char *ifname)
-{
-	ftdi_init(ftdi);
-
-	ftdi_set_interface(ftdi, interface);
-
-	if (ftdi_usb_open(ftdi, 0x0403, 0x6010)) {
-		fprintf(stderr, "Can't find IcoBoard USB baseboard (vedor_id 0x0403, device_id 0x6010, interface %s).\n", ifname);
-		exit(1);
-	}
-
-	if (ftdi_usb_reset(ftdi)) {
-		fprintf(stderr, "Failed to reset IcoBoard USB baseboard (interface %s).\n", ifname);
-		exit(1);
-	}
-
-	if (ftdi_usb_purge_buffers(ftdi)) {
-		fprintf(stderr, "Failed to purge buffers on IcoBoard USB baseboard (interface %s).\n", ifname);
-		exit(1);
-	}
-
-	if (ftdi_set_bitmode(ftdi, 0xff, BITMODE_MPSSE) < 0) {
-		fprintf(stderr, "Failed set BITMODE_MPSSE on IcoBoard USB baseboard (interface %s).\n", ifname);
-		exit(1);
-	}
-
-	std::vector<uint8_t> cmd;
-
-	// enable clock prescale divide by 5
-	cmd.push_back(0x8b);
-
-	// 6 MHz = 0
-	// 1 MHz = 5
-	// 100 kHz = 59
-	// 10 kHz = 599
-	int clkdiv = 0;
-
-	cmd.push_back(0x86);
-	cmd.push_back(clkdiv & 255);
-	cmd.push_back(clkdiv >> 8);
-
-	my_ftdi_send(ftdi, &cmd.front(), cmd.size());
-}
-
-void my_ftdi_wr(int pin)
-{
-	struct ftdi_context *ftdi = &ftdia;
-	uint32_t new_dir = ftdistate_dir;
-	uint32_t new_val = ftdistate_val;
-	uint8_t opcode = 0x80;
-
-	if (pin >= 16) {
-		pin -= 16;
-		ftdi = &ftdib;
-		new_dir >>= 16;
-		new_val >>= 16;
-	}
-
-	if (pin >= 8) {
-		pin -= 8;
-		opcode = 0x82;
-		new_dir >>= 8;
-		new_val >>= 8;
-	}
-
-	uint8_t cmd[3] = {opcode, uint8_t(new_val), uint8_t(new_dir)};
-	my_ftdi_send(ftdi, cmd, 3);
-}
-
-void my_ftdi_pinmode(int pin, bool pinmode)
-{
-	if (pinmode)
-		ftdistate_dir |= 1 << pin;
-	else
-		ftdistate_dir &= ~(1 << pin);
-
-	my_ftdi_wr(pin);
-}
-
-void my_ftdi_pinwrite(int pin, bool pinvalue)
-{
-	if (pinvalue)
-		ftdistate_val |= 1 << pin;
-	else
-		ftdistate_val &= ~(1 << pin);
-
-	my_ftdi_wr(pin);
-}
-
-bool my_ftdi_pinread(int pin)
-{
-	struct ftdi_context *ftdi = &ftdia;
-	uint8_t opcode = 0x81;
-
-	if (pin >= 16) {
-		pin -= 16;
-		ftdi = &ftdib;
-	}
-
-	if (pin >= 8) {
-		pin -= 8;
-		opcode = 0x83;
-	}
-
-	uint8_t data;
-	my_ftdi_send(ftdi, &opcode, 1);
-	my_ftdi_recv(ftdi, &data, 1);
-
-	return (data & (1 << pin)) != 0;
-}
-
-void wiringPiSetup()
-{
-	my_ftdi_setup(&ftdia, INTERFACE_A, "A");
-	my_ftdi_setup(&ftdib, INTERFACE_B, "B");
-	ftdistate_dir = 0;
-	ftdistate_val = 0;
-}
-
-void pinMode(int pin, int dir)
-{
-	my_ftdi_pinmode(pin, dir != INPUT);
-}
-
-void digitalWrite(int pin, int val)
-{
-	my_ftdi_pinwrite(pin, val != LOW);
-}
-
-int digitalRead(int pin)
-{
-	return my_ftdi_pinread(pin) ? HIGH : LOW;
-}
-
-void digitalSync(int usec_delay)
-{
-	uint8_t request = 0x81;
-	uint8_t response_a, response_b;
-
-	my_ftdi_send(&ftdia, &request, 1);
-	my_ftdi_recv(&ftdia, &response_a, 1);
-
-	my_ftdi_send(&ftdib, &request, 1);
-	my_ftdi_recv(&ftdib, &response_b, 1);
-
-	usleep(usec_delay);
-}
-
-#define PININFO(pin) pininfo(#pin, pin);
-
-void pininfo(const char *name, int pin)
-{
-	int dir = (ftdistate_dir >> pin) & 1;
-	int val = (ftdistate_val >> pin) & 1;
-	if (!dir) val = digitalRead(pin);
-
-	fprintf(stderr, "%-20s %d %s\n", name, val, dir ? "OUT" : "IN");
-}
-
-#endif /* USBMODE */
 
 bool send_zero = false;
 bool recv_zero = false;
@@ -409,7 +90,6 @@ void prog_bitstream(bool reset_only = false)
 		digitalWrite(RPI_ICE_CLK, HIGH);
 	}
 
-#ifndef USBMODE
 	while (1)
 	{
 		int byte = getchar();
@@ -426,36 +106,6 @@ void prog_bitstream(bool reset_only = false)
 		digitalWrite(RPI_ICE_CLK, LOW);
 		digitalWrite(RPI_ICE_CLK, HIGH);
 	}
-#else
-	std::vector<uint8_t> data;
-	int sent_cnt = 0;
-
-	while (1)
-	{
-		int byte = getchar();
-		if (byte < 0)
-			break;
-		data.push_back(byte);
-	}
-
-	while (sent_cnt < int(data.size()))
-	{
-		uint8_t *buffer = &data[sent_cnt];
-		int len = int(data.size()) - sent_cnt;
-
-		if (len > 1024)
-			len = 1024;
-
-		uint8_t cmd[4] = {0x11, uint8_t(len-1), uint8_t((len-1) >> 8)};
-		my_ftdi_send(&ftdib, cmd, 3);
-		my_ftdi_send(&ftdib, buffer, len);
-		sent_cnt += len;
-	}
-
-	// send 49 additional dummy bits
-	uint8_t cmd[5] = {0x8f, 0x05, 0x00, 0x8e, 0x00};
-	my_ftdi_send(&ftdib, cmd, 5);
-#endif
 
 	digitalSync(2000);
 #if 0
@@ -483,7 +133,6 @@ void spi_end()
 
 uint32_t spi_xfer(uint32_t data, int nbits = 8)
 {
-#ifndef USBMODE
 	uint32_t rdata = 0;
 
 	for (int i = nbits-1; i >= 0; i--)
@@ -500,18 +149,6 @@ uint32_t spi_xfer(uint32_t data, int nbits = 8)
 
 	// fprintf(stderr, "SPI:%d %02x %02x\n", nbits, data, rdata);
 	return rdata;
-#else
-	assert(nbits <= 8);
-
-	uint8_t cmd[3] = {0x33, uint8_t(nbits-1), uint8_t(data)};
-	uint8_t rdata;
-
-	my_ftdi_send(&ftdib, cmd, 3);
-	my_ftdi_recv(&ftdib, &rdata, 1);
-
-	// fprintf(stderr, "SPI:%d %02x %02x\n", nbits, data, rdata);
-	return rdata;
-#endif
 }
 
 void flash_write_enable()
@@ -545,15 +182,8 @@ void flash_write(int addr, uint8_t *data, int n)
 	spi_xfer(addr >> 16);
 	spi_xfer(addr >> 8);
 	spi_xfer(addr);
-#ifndef USBMODE
 	while (n--)
 		spi_xfer(*(data++));
-#else
-	assert(n <= 64*1024);
-	uint8_t cmd[3] = {0x11, uint8_t(n-1), uint8_t((n-1) >> 8)};
-	my_ftdi_send(&ftdib, cmd, 3);
-	my_ftdi_send(&ftdib, data, n);
-#endif
 	spi_end();
 }
 
@@ -564,15 +194,8 @@ void flash_read(int addr, uint8_t *data, int n)
 	spi_xfer(addr >> 16);
 	spi_xfer(addr >> 8);
 	spi_xfer(addr);
-#ifndef USBMODE
 	while (n--)
 		*(data++) = spi_xfer(0);
-#else
-	assert(n <= 64*1024);
-	uint8_t cmd[3] = {0x24, uint8_t(n-1), uint8_t((n-1) >> 8)};
-	my_ftdi_send(&ftdib, cmd, 3);
-	my_ftdi_recv(&ftdib, data, n);
-#endif
 	spi_end();
 }
 
@@ -760,15 +383,12 @@ void read_flashmem(int n)
 
 void epsilon_sleep()
 {
-#ifndef USBMODE
 	for (int i = 0; i < 1000; i++)
 		asm volatile ("");
-#endif
 }
 
 void send_word(int v)
 {
-#ifndef USBMODE
 	if (current_send_recv_mode != 's')
 	{
 		digitalWrite(RASPI_DIR, HIGH);
@@ -809,99 +429,10 @@ void send_word(int v)
 	epsilon_sleep();
 	digitalWrite(RASPI_CLK, LOW);
 	epsilon_sleep();
-#else
-	if (current_send_recv_mode != 's')
-	{
-		ftdistate_val |= 1 << RASPI_DIR;
-
-		ftdistate_dir |= 1 << RASPI_D8;
-		ftdistate_dir |= 1 << RASPI_D7;
-		ftdistate_dir |= 1 << RASPI_D6;
-		ftdistate_dir |= 1 << RASPI_D5;
-		ftdistate_dir |= 1 << RASPI_D4;
-		ftdistate_dir |= 1 << RASPI_D3;
-		ftdistate_dir |= 1 << RASPI_D2;
-		ftdistate_dir |= 1 << RASPI_D1;
-		ftdistate_dir |= 1 << RASPI_D0;
-
-		std::vector<uint8_t> cmd;
-
-		cmd.push_back(0x80);
-		cmd.push_back(ftdistate_val);
-		cmd.push_back(ftdistate_dir);
-
-		cmd.push_back(0x82);
-		cmd.push_back(ftdistate_val >> 8);
-		cmd.push_back(ftdistate_dir >> 8);
-
-		my_ftdi_send(&ftdia, &cmd.front(), cmd.size());
-		current_send_recv_mode = 's';
-	}
-
-	if (verbose) {
-		last_recv_v = -1;
-		last_recv_rep = 0;
-		fprintf(stderr, "<%03x>", v);
-		fflush(stderr);
-	}
-
-	std::vector<uint8_t> cmd;
-
-	ftdistate_val &= ~(1 << RASPI_D8);
-	ftdistate_val &= ~(1 << RASPI_D7);
-	ftdistate_val &= ~(1 << RASPI_D6);
-	ftdistate_val &= ~(1 << RASPI_D5);
-	ftdistate_val &= ~(1 << RASPI_D4);
-	ftdistate_val &= ~(1 << RASPI_D3);
-	ftdistate_val &= ~(1 << RASPI_D2);
-	ftdistate_val &= ~(1 << RASPI_D1);
-	ftdistate_val &= ~(1 << RASPI_D0);
-
-	if ((v & 0x100) != 0) ftdistate_val |= 1 << RASPI_D8;
-	if ((v & 0x080) != 0) ftdistate_val |= 1 << RASPI_D7;
-	if ((v & 0x040) != 0) ftdistate_val |= 1 << RASPI_D6;
-	if ((v & 0x020) != 0) ftdistate_val |= 1 << RASPI_D5;
-	if ((v & 0x010) != 0) ftdistate_val |= 1 << RASPI_D4;
-	if ((v & 0x008) != 0) ftdistate_val |= 1 << RASPI_D3;
-	if ((v & 0x004) != 0) ftdistate_val |= 1 << RASPI_D2;
-	if ((v & 0x002) != 0) ftdistate_val |= 1 << RASPI_D1;
-	if ((v & 0x001) != 0) ftdistate_val |= 1 << RASPI_D0;
-
-	cmd.push_back(0x80);
-	cmd.push_back(ftdistate_val);
-	cmd.push_back(ftdistate_dir);
-
-	cmd.push_back(0x82);
-	cmd.push_back(ftdistate_val >> 8);
-	cmd.push_back(ftdistate_dir >> 8);
-
-	ftdistate_val |= 1 << RASPI_CLK;
-
-	cmd.push_back(0x80);
-	cmd.push_back(ftdistate_val);
-	cmd.push_back(ftdistate_dir);
-
-	cmd.push_back(0x82);
-	cmd.push_back(ftdistate_val >> 8);
-	cmd.push_back(ftdistate_dir >> 8);
-
-	ftdistate_val &= ~(1 << RASPI_CLK);
-
-	cmd.push_back(0x80);
-	cmd.push_back(ftdistate_val);
-	cmd.push_back(ftdistate_dir);
-
-	cmd.push_back(0x82);
-	cmd.push_back(ftdistate_val >> 8);
-	cmd.push_back(ftdistate_dir >> 8);
-
-	my_ftdi_send(&ftdia, &cmd.front(), cmd.size());
-#endif
 }
 
 int recv_word(int timeout = 0)
 {
-#ifndef USBMODE
 	if (current_send_recv_mode != 'r')
 	{
 		pinMode(RASPI_D8, INPUT);
@@ -937,77 +468,6 @@ int recv_word(int timeout = 0)
 	epsilon_sleep();
 	digitalWrite(RASPI_CLK, LOW);
 	epsilon_sleep();
-#else
-	if (current_send_recv_mode != 'r')
-	{
-		ftdistate_val &= ~(1 << RASPI_DIR);
-
-		ftdistate_dir &= ~(1 << RASPI_D8);
-		ftdistate_dir &= ~(1 << RASPI_D7);
-		ftdistate_dir &= ~(1 << RASPI_D6);
-		ftdistate_dir &= ~(1 << RASPI_D5);
-		ftdistate_dir &= ~(1 << RASPI_D4);
-		ftdistate_dir &= ~(1 << RASPI_D3);
-		ftdistate_dir &= ~(1 << RASPI_D2);
-		ftdistate_dir &= ~(1 << RASPI_D1);
-		ftdistate_dir &= ~(1 << RASPI_D0);
-
-		std::vector<uint8_t> cmd;
-
-		cmd.push_back(0x80);
-		cmd.push_back(ftdistate_val);
-		cmd.push_back(ftdistate_dir);
-
-		cmd.push_back(0x82);
-		cmd.push_back(ftdistate_val >> 8);
-		cmd.push_back(ftdistate_dir >> 8);
-
-		my_ftdi_send(&ftdia, &cmd.front(), cmd.size());
-		current_send_recv_mode = 'r';
-	}
-
-	std::vector<uint8_t> cmd;
-	uint8_t cmd_response[2];
-
-	cmd.push_back(0x81);
-	cmd.push_back(0x83);
-
-	ftdistate_val |= 1 << RASPI_CLK;
-
-	cmd.push_back(0x80);
-	cmd.push_back(ftdistate_val);
-	cmd.push_back(ftdistate_dir);
-
-	cmd.push_back(0x82);
-	cmd.push_back(ftdistate_val >> 8);
-	cmd.push_back(ftdistate_dir >> 8);
-
-	ftdistate_val &= ~(1 << RASPI_CLK);
-
-	cmd.push_back(0x80);
-	cmd.push_back(ftdistate_val);
-	cmd.push_back(ftdistate_dir);
-
-	cmd.push_back(0x82);
-	cmd.push_back(ftdistate_val >> 8);
-	cmd.push_back(ftdistate_dir >> 8);
-
-	my_ftdi_send(&ftdia, &cmd.front(), cmd.size());
-	my_ftdi_recv(&ftdia, cmd_response, 2);
-
-	int v = 0;
-	uint16_t pindata = (cmd_response[1] << 8) | cmd_response[0];
-
-	if ((pindata & (1 << RASPI_D8)) != 0 ) v |= 0x100;
-	if ((pindata & (1 << RASPI_D7)) != 0 ) v |= 0x080;
-	if ((pindata & (1 << RASPI_D6)) != 0 ) v |= 0x040;
-	if ((pindata & (1 << RASPI_D5)) != 0 ) v |= 0x020;
-	if ((pindata & (1 << RASPI_D4)) != 0 ) v |= 0x010;
-	if ((pindata & (1 << RASPI_D3)) != 0 ) v |= 0x008;
-	if ((pindata & (1 << RASPI_D2)) != 0 ) v |= 0x004;
-	if ((pindata & (1 << RASPI_D1)) != 0 ) v |= 0x002;
-	if ((pindata & (1 << RASPI_D0)) != 0 ) v |= 0x001;
-#endif
 
 	if (verbose)
 	{
@@ -1541,33 +1001,6 @@ int main(int argc, char **argv)
 
 	if (verbose)
 		fprintf(stderr, "\n");
-
-#if 0
-#ifdef USBMODE
-	PININFO(RPI_ICE_CLK);
-	PININFO(RPI_ICE_CDONE);
-	PININFO(RPI_ICE_MOSI);
-	PININFO(RPI_ICE_MISO);
-	PININFO(LOAD_FROM_FLASH);
-
-	PININFO(RPI_ICE_CRESET);
-	PININFO(RPI_ICE_CS);
-	PININFO(RPI_ICE_SELECT);
-
-	PININFO(RASPI_D8);
-	PININFO(RASPI_D7);
-	PININFO(RASPI_D6);
-	PININFO(RASPI_D5);
-	PININFO(RASPI_D4);
-	PININFO(RASPI_D3);
-	PININFO(RASPI_D2);
-	PININFO(RASPI_D1);
-	PININFO(RASPI_D0);
-
-	PININFO(RASPI_DIR);
-	PININFO(RASPI_CLK);
-#endif
-#endif
 
 	return 0;
 }

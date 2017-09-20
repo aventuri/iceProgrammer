@@ -3,11 +3,6 @@ BR_DIR := /home/andrea/src/buildroot-2017.02/output
 CC := $(BR_DIR)/host/usr/bin/arm-linux-gnueabihf-g++
 CFLAGS :=-Wall -I$(BR_DIR)/host/opt/ext-toolchain/arm-linux-gnueabihf/include/c++/5.3.1/ -I$(BR_DIR)/host/opt/ext-toolchain/arm-linux-gnueabihf/include/c++/5.3.1/arm-linux-gnueabihf/
 
-
-USBMODE ?= 0
-RASPI ?= 0
-SUNXI ?= 1
-
 TARGET ?= programmer
 
 ifeq ($(shell bash -c 'type -p $(TARGET)'),)
@@ -16,24 +11,11 @@ else
 SSH_RASPI ?= sh -c
 endif
 
-ifeq ($(USBMODE),1)
-$(TARGET): $(TARGET).cc
-	$(CC) -o $(TARGET) -Wall -Os $(TARGET).cc -D USBMODE -lftdi -lrt -lstdc++
-else
-ifeq ($(RASPI),1)
-$(TARGET): $(TARGET).cc
-	$(CC) -o $(TARGET) -Wall -Os $(TARGET).cc -lwiringPi -lrt -lstdc++
-else
-ifeq ($(SUNXI),1)
 $(TARGET): libSunxi.o $(TARGET).cc
-	$(CC) -o $(TARGET) -Wall -Os $(TARGET).cc -D SUNXI libSunxi.o -lrt -lstdc++
+	$(CC) -o $(TARGET) -Wall -Os $(TARGET).cc libSunxi.o -lrt -lstdc++
 
 libSunxi.o: libSunxi.cc libSunxi.h
 	$(CC) -c -Wall -Os libSunxi.cc -lrt -lstdc++
-
-endif
-endif
-endif
 
 example.blif: example.v
 	yosys -p 'synth_ice40 -blif example.blif' example.v
