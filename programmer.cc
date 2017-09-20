@@ -24,12 +24,12 @@ int last_recv_rep = 0;
 
 void fpga_reset()
 {
-	pinMode(RPI_ICE_CRESET,  OUTPUT);
-	digitalWrite(RPI_ICE_CRESET, LOW);
+	pinMode(SUNXI_ICE_CRESET,  OUTPUT);
+	digitalWrite(SUNXI_ICE_CRESET, LOW);
 	digitalSync(2000);
-	digitalWrite(RPI_ICE_CRESET, HIGH);
+	digitalWrite(SUNXI_ICE_CRESET, HIGH);
 	digitalSync(500000);
-	if (digitalRead(RPI_ICE_CDONE) != HIGH)
+	if (digitalRead(SUNXI_ICE_CDONE) != HIGH)
 		fprintf(stderr, "Warning: cdone is low\n");
 }
 
@@ -53,32 +53,32 @@ int get_time_ms()
 
 void prog_bitstream(bool reset_only = false)
 {
-	pinMode(RPI_ICE_CLK,     OUTPUT);
-	pinMode(RPI_ICE_MOSI,    OUTPUT);
+	pinMode(SUNXI_ICE_CLK,     OUTPUT);
+	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
 	pinMode(LOAD_FROM_FLASH, OUTPUT);
-	pinMode(RPI_ICE_CRESET,  OUTPUT);
-	pinMode(RPI_ICE_CS,      OUTPUT);
-	pinMode(RPI_ICE_SELECT,  OUTPUT);
+	pinMode(SUNXI_ICE_CRESET,  OUTPUT);
+	pinMode(SUNXI_ICE_CS,      OUTPUT);
+	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	fprintf(stderr, "reset..\n");
 
 	// enable reset
-	digitalWrite(RPI_ICE_CRESET, LOW);
+	digitalWrite(SUNXI_ICE_CRESET, LOW);
 
 	// start clock high
-	digitalWrite(RPI_ICE_CLK, HIGH);
+	digitalWrite(SUNXI_ICE_CLK, HIGH);
 
 	// select SRAM programming mode
 	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(RPI_ICE_SELECT, LOW);
-	digitalWrite(RPI_ICE_CS, LOW);
+	digitalWrite(SUNXI_ICE_SELECT, LOW);
+	digitalWrite(SUNXI_ICE_CS, LOW);
 	digitalSync(100);
 
 	// release reset
-	digitalWrite(RPI_ICE_CRESET, HIGH);
+	digitalWrite(SUNXI_ICE_CRESET, HIGH);
 	digitalSync(2000);
 
-	fprintf(stderr, "cdone: %s\n", digitalRead(RPI_ICE_CDONE) == HIGH ? "high" : "low");
+	fprintf(stderr, "cdone: %s\n", digitalRead(SUNXI_ICE_CDONE) == HIGH ? "high" : "low");
 
 	if (reset_only)
 		return;
@@ -86,8 +86,8 @@ void prog_bitstream(bool reset_only = false)
 	fprintf(stderr, "programming..\n");
 
 	for (int i = 0; i < 8; i++) {
-		digitalWrite(RPI_ICE_CLK, LOW);
-		digitalWrite(RPI_ICE_CLK, HIGH);
+		digitalWrite(SUNXI_ICE_CLK, LOW);
+		digitalWrite(SUNXI_ICE_CLK, HIGH);
 	}
 
 	while (1)
@@ -96,15 +96,15 @@ void prog_bitstream(bool reset_only = false)
 		if (byte < 0)
 			break;
 		for (int i = 7; i >= 0; i--) {
-			digitalWrite(RPI_ICE_MOSI, ((byte >> i) & 1) ? HIGH : LOW);
-			digitalWrite(RPI_ICE_CLK, LOW);
-			digitalWrite(RPI_ICE_CLK, HIGH);
+			digitalWrite(SUNXI_ICE_MOSI, ((byte >> i) & 1) ? HIGH : LOW);
+			digitalWrite(SUNXI_ICE_CLK, LOW);
+			digitalWrite(SUNXI_ICE_CLK, HIGH);
 		}
 	}
 
 	for (int i = 0; i < 49; i++) {
-		digitalWrite(RPI_ICE_CLK, LOW);
-		digitalWrite(RPI_ICE_CLK, HIGH);
+		digitalWrite(SUNXI_ICE_CLK, LOW);
+		digitalWrite(SUNXI_ICE_CLK, HIGH);
 	}
 
 	digitalSync(2000);
@@ -112,22 +112,22 @@ void prog_bitstream(bool reset_only = false)
 	for (int i = 2; i <= 512; i+=2) {
 		digitalSync(2000);
 		if (((i-1) & i) == 0)
-			fprintf(stderr, "cdone (after %3d ms): %s\n", i, digitalRead(RPI_ICE_CDONE) == HIGH ? "high" : "low");
+			fprintf(stderr, "cdone (after %3d ms): %s\n", i, digitalRead(SUNXI_ICE_CDONE) == HIGH ? "high" : "low");
 	}
 #else
-	fprintf(stderr, "cdone: %s\n", digitalRead(RPI_ICE_CDONE) == HIGH ? "high" : "low");
+	fprintf(stderr, "cdone: %s\n", digitalRead(SUNXI_ICE_CDONE) == HIGH ? "high" : "low");
 #endif
 }
 
 void spi_begin()
 {
-	digitalWrite(RPI_ICE_CS, LOW);
+	digitalWrite(SUNXI_ICE_CS, LOW);
 	// fprintf(stderr, "SPI_BEGIN\n");
 }
 
 void spi_end()
 {
-	digitalWrite(RPI_ICE_CS, HIGH);
+	digitalWrite(SUNXI_ICE_CS, HIGH);
 	// fprintf(stderr, "SPI_END\n");
 }
 
@@ -137,14 +137,14 @@ uint32_t spi_xfer(uint32_t data, int nbits = 8)
 
 	for (int i = nbits-1; i >= 0; i--)
 	{
-		digitalWrite(RPI_ICE_MOSI, (data & (1 << i)) ? HIGH : LOW);
+		digitalWrite(SUNXI_ICE_MOSI, (data & (1 << i)) ? HIGH : LOW);
 
-		if (digitalRead(RPI_ICE_MISO) == HIGH)
+		if (digitalRead(SUNXI_ICE_MISO) == HIGH)
 			rdata |= 1 << i;
 
-		digitalWrite(RPI_ICE_CLK, HIGH);
+		digitalWrite(SUNXI_ICE_CLK, HIGH);
 
-		digitalWrite(RPI_ICE_CLK, LOW);
+		digitalWrite(SUNXI_ICE_CLK, LOW);
 	}
 
 	// fprintf(stderr, "SPI:%d %02x %02x\n", nbits, data, rdata);
@@ -221,17 +221,17 @@ int flash_wait()
 
 void prog_flasherase()
 {
-	pinMode(RPI_ICE_CLK,     OUTPUT);
-	pinMode(RPI_ICE_MOSI,    OUTPUT);
+	pinMode(SUNXI_ICE_CLK,     OUTPUT);
+	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
 	pinMode(LOAD_FROM_FLASH, OUTPUT);
-	pinMode(RPI_ICE_CS,      OUTPUT);
-	pinMode(RPI_ICE_SELECT,  OUTPUT);
+	pinMode(SUNXI_ICE_CS,      OUTPUT);
+	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	// connect flash to Raspi
 	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(RPI_ICE_SELECT, HIGH);
-	digitalWrite(RPI_ICE_CS, HIGH);
-	digitalWrite(RPI_ICE_CLK, LOW);
+	digitalWrite(SUNXI_ICE_SELECT, HIGH);
+	digitalWrite(SUNXI_ICE_CS, HIGH);
+	digitalWrite(SUNXI_ICE_CLK, LOW);
 	digitalSync(100);
 
 	// power_up
@@ -250,17 +250,17 @@ void prog_flasherase()
 
 void prog_flashmem(int pageoffset)
 {
-	pinMode(RPI_ICE_CLK,     OUTPUT);
-	pinMode(RPI_ICE_MOSI,    OUTPUT);
+	pinMode(SUNXI_ICE_CLK,     OUTPUT);
+	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
 	pinMode(LOAD_FROM_FLASH, OUTPUT);
-	pinMode(RPI_ICE_CS,      OUTPUT);
-	pinMode(RPI_ICE_SELECT,  OUTPUT);
+	pinMode(SUNXI_ICE_CS,      OUTPUT);
+	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	// connect flash to Raspi
 	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(RPI_ICE_SELECT, HIGH);
-	digitalWrite(RPI_ICE_CS, HIGH);
-	digitalWrite(RPI_ICE_CLK, LOW);
+	digitalWrite(SUNXI_ICE_SELECT, HIGH);
+	digitalWrite(SUNXI_ICE_CS, HIGH);
+	digitalWrite(SUNXI_ICE_CLK, LOW);
 	digitalSync(100);
 
 	// power_up
@@ -341,17 +341,17 @@ void prog_flashmem(int pageoffset)
 
 void read_flashmem(int n)
 {
-	pinMode(RPI_ICE_CLK,     OUTPUT);
-	pinMode(RPI_ICE_MOSI,    OUTPUT);
+	pinMode(SUNXI_ICE_CLK,     OUTPUT);
+	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
 	pinMode(LOAD_FROM_FLASH, OUTPUT);
-	pinMode(RPI_ICE_CS,      OUTPUT);
-	pinMode(RPI_ICE_SELECT,  OUTPUT);
+	pinMode(SUNXI_ICE_CS,      OUTPUT);
+	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	// connect flash to Raspi
 	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(RPI_ICE_SELECT, HIGH);
-	digitalWrite(RPI_ICE_CS, HIGH);
-	digitalWrite(RPI_ICE_CLK, LOW);
+	digitalWrite(SUNXI_ICE_SELECT, HIGH);
+	digitalWrite(SUNXI_ICE_CS, HIGH);
+	digitalWrite(SUNXI_ICE_CLK, LOW);
 	digitalSync(100);
 
 	// power_up
@@ -391,18 +391,18 @@ void send_word(int v)
 {
 	if (current_send_recv_mode != 's')
 	{
-		digitalWrite(RASPI_DIR, HIGH);
+		digitalWrite(SUNXI_DIR, HIGH);
 		epsilon_sleep();
 
-		pinMode(RASPI_D8, OUTPUT);
-		pinMode(RASPI_D7, OUTPUT);
-		pinMode(RASPI_D6, OUTPUT);
-		pinMode(RASPI_D5, OUTPUT);
-		pinMode(RASPI_D4, OUTPUT);
-		pinMode(RASPI_D3, OUTPUT);
-		pinMode(RASPI_D2, OUTPUT);
-		pinMode(RASPI_D1, OUTPUT);
-		pinMode(RASPI_D0, OUTPUT);
+		pinMode(SUNXI_D8, OUTPUT);
+		pinMode(SUNXI_D7, OUTPUT);
+		pinMode(SUNXI_D6, OUTPUT);
+		pinMode(SUNXI_D5, OUTPUT);
+		pinMode(SUNXI_D4, OUTPUT);
+		pinMode(SUNXI_D3, OUTPUT);
+		pinMode(SUNXI_D2, OUTPUT);
+		pinMode(SUNXI_D1, OUTPUT);
+		pinMode(SUNXI_D0, OUTPUT);
 
 		current_send_recv_mode = 's';
 	}
@@ -414,20 +414,20 @@ void send_word(int v)
 		fflush(stderr);
 	}
 
-	digitalWrite(RASPI_D8, (v & 0x100) ? HIGH : LOW);
-	digitalWrite(RASPI_D7, (v & 0x080) ? HIGH : LOW);
-	digitalWrite(RASPI_D6, (v & 0x040) ? HIGH : LOW);
-	digitalWrite(RASPI_D5, (v & 0x020) ? HIGH : LOW);
-	digitalWrite(RASPI_D4, (v & 0x010) ? HIGH : LOW);
-	digitalWrite(RASPI_D3, (v & 0x008) ? HIGH : LOW);
-	digitalWrite(RASPI_D2, (v & 0x004) ? HIGH : LOW);
-	digitalWrite(RASPI_D1, (v & 0x002) ? HIGH : LOW);
-	digitalWrite(RASPI_D0, (v & 0x001) ? HIGH : LOW);
+	digitalWrite(SUNXI_D8, (v & 0x100) ? HIGH : LOW);
+	digitalWrite(SUNXI_D7, (v & 0x080) ? HIGH : LOW);
+	digitalWrite(SUNXI_D6, (v & 0x040) ? HIGH : LOW);
+	digitalWrite(SUNXI_D5, (v & 0x020) ? HIGH : LOW);
+	digitalWrite(SUNXI_D4, (v & 0x010) ? HIGH : LOW);
+	digitalWrite(SUNXI_D3, (v & 0x008) ? HIGH : LOW);
+	digitalWrite(SUNXI_D2, (v & 0x004) ? HIGH : LOW);
+	digitalWrite(SUNXI_D1, (v & 0x002) ? HIGH : LOW);
+	digitalWrite(SUNXI_D0, (v & 0x001) ? HIGH : LOW);
 
 	epsilon_sleep();
-	digitalWrite(RASPI_CLK, HIGH);
+	digitalWrite(SUNXI_CLK, HIGH);
 	epsilon_sleep();
-	digitalWrite(RASPI_CLK, LOW);
+	digitalWrite(SUNXI_CLK, LOW);
 	epsilon_sleep();
 }
 
@@ -435,17 +435,17 @@ int recv_word(int timeout = 0)
 {
 	if (current_send_recv_mode != 'r')
 	{
-		pinMode(RASPI_D8, INPUT);
-		pinMode(RASPI_D7, INPUT);
-		pinMode(RASPI_D6, INPUT);
-		pinMode(RASPI_D5, INPUT);
-		pinMode(RASPI_D4, INPUT);
-		pinMode(RASPI_D3, INPUT);
-		pinMode(RASPI_D2, INPUT);
-		pinMode(RASPI_D1, INPUT);
-		pinMode(RASPI_D0, INPUT);
+		pinMode(SUNXI_D8, INPUT);
+		pinMode(SUNXI_D7, INPUT);
+		pinMode(SUNXI_D6, INPUT);
+		pinMode(SUNXI_D5, INPUT);
+		pinMode(SUNXI_D4, INPUT);
+		pinMode(SUNXI_D3, INPUT);
+		pinMode(SUNXI_D2, INPUT);
+		pinMode(SUNXI_D1, INPUT);
+		pinMode(SUNXI_D0, INPUT);
 
-		digitalWrite(RASPI_DIR, LOW);
+		digitalWrite(SUNXI_DIR, LOW);
 		epsilon_sleep();
 
 		current_send_recv_mode = 'r';
@@ -453,20 +453,20 @@ int recv_word(int timeout = 0)
 
 	int v = 0;
 
-	if (digitalRead(RASPI_D8) == HIGH) v |= 0x100;
-	if (digitalRead(RASPI_D7) == HIGH) v |= 0x080;
-	if (digitalRead(RASPI_D6) == HIGH) v |= 0x040;
-	if (digitalRead(RASPI_D5) == HIGH) v |= 0x020;
-	if (digitalRead(RASPI_D4) == HIGH) v |= 0x010;
-	if (digitalRead(RASPI_D3) == HIGH) v |= 0x008;
-	if (digitalRead(RASPI_D2) == HIGH) v |= 0x004;
-	if (digitalRead(RASPI_D1) == HIGH) v |= 0x002;
-	if (digitalRead(RASPI_D0) == HIGH) v |= 0x001;
+	if (digitalRead(SUNXI_D8) == HIGH) v |= 0x100;
+	if (digitalRead(SUNXI_D7) == HIGH) v |= 0x080;
+	if (digitalRead(SUNXI_D6) == HIGH) v |= 0x040;
+	if (digitalRead(SUNXI_D5) == HIGH) v |= 0x020;
+	if (digitalRead(SUNXI_D4) == HIGH) v |= 0x010;
+	if (digitalRead(SUNXI_D3) == HIGH) v |= 0x008;
+	if (digitalRead(SUNXI_D2) == HIGH) v |= 0x004;
+	if (digitalRead(SUNXI_D1) == HIGH) v |= 0x002;
+	if (digitalRead(SUNXI_D0) == HIGH) v |= 0x001;
 
 	epsilon_sleep();
-	digitalWrite(RASPI_CLK, HIGH);
+	digitalWrite(SUNXI_CLK, HIGH);
 	epsilon_sleep();
-	digitalWrite(RASPI_CLK, LOW);
+	digitalWrite(SUNXI_CLK, LOW);
 	epsilon_sleep();
 
 	if (verbose)
@@ -777,30 +777,30 @@ void read_dbgvcd(int nbits)
 
 void reset_inout()
 {
-	pinMode(RPI_ICE_CLK,     INPUT);
-	pinMode(RPI_ICE_CDONE,   INPUT);
-	pinMode(RPI_ICE_MOSI,    INPUT);
-	pinMode(RPI_ICE_MISO,    INPUT);
+	pinMode(SUNXI_ICE_CLK,     INPUT);
+	pinMode(SUNXI_ICE_CDONE,   INPUT);
+	pinMode(SUNXI_ICE_MOSI,    INPUT);
+	pinMode(SUNXI_ICE_MISO,    INPUT);
 	pinMode(LOAD_FROM_FLASH, INPUT);
-	pinMode(RPI_ICE_CRESET,  INPUT);
-	pinMode(RPI_ICE_CS,      INPUT);
-	pinMode(RPI_ICE_SELECT,  INPUT);
+	pinMode(SUNXI_ICE_CRESET,  INPUT);
+	pinMode(SUNXI_ICE_CS,      INPUT);
+	pinMode(SUNXI_ICE_SELECT,  INPUT);
 
-	pinMode(RASPI_D8, INPUT);
-	pinMode(RASPI_D7, INPUT);
-	pinMode(RASPI_D6, INPUT);
-	pinMode(RASPI_D5, INPUT);
-	pinMode(RASPI_D4, INPUT);
-	pinMode(RASPI_D3, INPUT);
-	pinMode(RASPI_D2, INPUT);
-	pinMode(RASPI_D1, INPUT);
-	pinMode(RASPI_D0, INPUT);
+	pinMode(SUNXI_D8, INPUT);
+	pinMode(SUNXI_D7, INPUT);
+	pinMode(SUNXI_D6, INPUT);
+	pinMode(SUNXI_D5, INPUT);
+	pinMode(SUNXI_D4, INPUT);
+	pinMode(SUNXI_D3, INPUT);
+	pinMode(SUNXI_D2, INPUT);
+	pinMode(SUNXI_D1, INPUT);
+	pinMode(SUNXI_D0, INPUT);
 
-	pinMode(RASPI_DIR, OUTPUT);
-	pinMode(RASPI_CLK, OUTPUT);
+	pinMode(SUNXI_DIR, OUTPUT);
+	pinMode(SUNXI_CLK, OUTPUT);
 
-	digitalWrite(RASPI_DIR, LOW);
-	digitalWrite(RASPI_CLK, LOW);
+	digitalWrite(SUNXI_DIR, LOW);
+	digitalWrite(SUNXI_CLK, LOW);
 
 	current_send_recv_mode = 0;
 }
