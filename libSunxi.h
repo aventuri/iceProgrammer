@@ -58,7 +58,7 @@ enum SUNXI_GPIO {\
 };
 
 void digitalSync(int);
-void wiringPiSetup(void);
+void wiringSunxiSetup(void);
 void pinMode(int pin, int dir);
 void digitalWrite(int pin, int val);
 int digitalRead(int pin);

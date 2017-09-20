@@ -191,10 +191,6 @@ int sunxiRead(int pin)
 /*
  * wapper fn toward the sunxi implementation
  */
-void wiringPiSetup()
-{
-	wiringSunxiSetup();
-}
 void pinMode(int pinInt, int dir)
 {
 	sunxiMode( pinInt, dir );

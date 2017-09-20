@@ -916,84 +916,84 @@ int main(int argc, char **argv)
 		help(argv[0]);
 
 	if (mode == 'R') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		prog_bitstream(true);
 		reset_inout();
 	}
 
 	if (mode == 'b') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		fpga_reset();
 		reset_inout();
 	}
 
 	if (mode == 'E') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		prog_flasherase();
 		reset_inout();
 	}
 
 	if (mode == 'p') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		prog_bitstream();
 		reset_inout();
 	}
 
 	if (mode == 'f') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		prog_flashmem(pageoffset);
 		reset_inout();
 	}
 
 	if (mode == 'F') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		read_flashmem(n);
 		reset_inout();
 	}
 
 	if (mode == 'T') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		test_link();
 		reset_inout();
 	}
 
 	if (mode == 'B') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		test_bw();
 		reset_inout();
 	}
 
 	if (mode == 'w') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		write_endpoint(n, t);
 		reset_inout();
 	}
 
 	if (mode == 'r') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		read_endpoint(n, t);
 		reset_inout();
 	}
 
 	if (mode == 'c') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		console_endpoint(n, t);
 		reset_inout();
 	}
 
 	if (mode == 'V') {
-		wiringPiSetup();
+		wiringSunxiSetup();
 		reset_inout();
 		read_dbgvcd(n);
 		reset_inout();
