@@ -1,0 +1,29 @@
+
+      *********************************************************
+      * awProg -- Programmer and Debug Tool for SPI FPGA      *
+      *********************************************************
+
+this started from icoprog for Raspi
+
+but i trashed away all the stuff about WiringPi and just support plain GPIO
+
+to make compatible with Allwinner generic board.
+
+* first target FPGA is upduino:
+
+= upduino connection
+
+these are the GPIO used:
+
+* CLK
+* RESET (active low)
+* MISO (input)
+* MOSI
+
+
+
+= stuff from original icoprog of icotools:
+
+	git clone https://github.com/cliffordwolf/icotools.git
+	cd icotools/icoprog && make install
+
