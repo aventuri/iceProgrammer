@@ -78,17 +78,19 @@ void prog_bitstream(bool reset_only = false)
 	digitalWrite(SUNXI_ICE_CRESET, HIGH);
 	digitalSync(2000);
 
-	fprintf(stderr, "cdone: %s\n", digitalRead(SUNXI_ICE_CDONE) == HIGH ? "high" : "low");
+	//fprintf(stderr, "cdone: %s\n", digitalRead(SUNXI_ICE_CDONE) == HIGH ? "high" : "low");
 
 	if (reset_only)
 		return;
 
 	fprintf(stderr, "programming..\n");
 
+#if 0
 	for (int i = 0; i < 8; i++) {
 		digitalWrite(SUNXI_ICE_CLK, LOW);
 		digitalWrite(SUNXI_ICE_CLK, HIGH);
 	}
+#endif
 
 	while (1)
 	{
