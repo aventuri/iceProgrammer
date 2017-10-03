@@ -36,12 +36,12 @@
 #  define SUNXI_ICE_MISO	PD3  // U14-6  LCD0-D3 blue
 #  define SUNXI_ICE_CLK		PD2  // U14-3  LCD0-D2 purple
 #  define SUNXI_ICE_CDONE	PD5  // U14-8  LCD0-D5 yellow
-#  define SUNXI_ICE_SELECT	PD7  // U14-10 LCD0-D7 red
+//#  define SUNXI_ICE_SELECT	PD7  // U14-10 LCD0-D7 red
 
 #  define SUNXI_ICE_CRESET	PD4  // U14-5  LCD0-D4 green
 #  define SUNXI_ICE_MOSI	PD1  // U14-4  LCD0-D1 grey
 #  define SUNXI_ICE_CS		PD0  // U14-1  LCD0-D0 white
-#  define LOAD_FROM_FLASH	PD6  // U14-7  LCD0-D6 orange
+//#  define LOAD_FROM_FLASH	PD6  // U14-7  LCD0-D6 orange
 // color brown is for 3v3 from breadboard!
 
 /*

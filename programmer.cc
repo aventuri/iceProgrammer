@@ -54,11 +54,11 @@ int get_time_ms()
 void prog_bitstream(bool reset_only = false)
 {
 	pinMode(SUNXI_ICE_CLK,     OUTPUT);
-	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
-	pinMode(LOAD_FROM_FLASH, OUTPUT);
+	pinMode(SUNXI_ICE_MISO,    OUTPUT);
+	//pinMode(LOAD_FROM_FLASH, OUTPUT);
 	pinMode(SUNXI_ICE_CRESET,  OUTPUT);
 	pinMode(SUNXI_ICE_CS,      OUTPUT);
-	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
+	//pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	fprintf(stderr, "reset..\n");
 
@@ -69,8 +69,8 @@ void prog_bitstream(bool reset_only = false)
 	digitalWrite(SUNXI_ICE_CLK, HIGH);
 
 	// select SRAM programming mode
-	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(SUNXI_ICE_SELECT, LOW);
+	//digitalWrite(LOAD_FROM_FLASH, LOW);
+	//digitalWrite(SUNXI_ICE_SELECT, LOW);
 	digitalWrite(SUNXI_ICE_CS, LOW);
 	digitalSync(100);
 
@@ -98,7 +98,7 @@ void prog_bitstream(bool reset_only = false)
 		if (byte < 0)
 			break;
 		for (int i = 7; i >= 0; i--) {
-			digitalWrite(SUNXI_ICE_MOSI, ((byte >> i) & 1) ? HIGH : LOW);
+			digitalWrite(SUNXI_ICE_MISO, ((byte >> i) & 1) ? HIGH : LOW);
 			digitalWrite(SUNXI_ICE_CLK, LOW);
 			digitalWrite(SUNXI_ICE_CLK, HIGH);
 		}
@@ -149,7 +149,7 @@ uint32_t spi_xfer(uint32_t data, int nbits = 8)
 		digitalWrite(SUNXI_ICE_CLK, LOW);
 	}
 
-	// fprintf(stderr, "SPI:%d %02x %02x\n", nbits, data, rdata);
+	//fprintf(stderr, "DEBUG SPI:%d %02x %02x\n", nbits, data, rdata);
 	return rdata;
 }
 
@@ -225,13 +225,13 @@ void prog_flasherase()
 {
 	pinMode(SUNXI_ICE_CLK,     OUTPUT);
 	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
-	pinMode(LOAD_FROM_FLASH, OUTPUT);
+	//pinMode(LOAD_FROM_FLASH, OUTPUT);
 	pinMode(SUNXI_ICE_CS,      OUTPUT);
-	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
+	//pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	// connect flash to Raspi
-	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(SUNXI_ICE_SELECT, HIGH);
+	//digitalWrite(LOAD_FROM_FLASH, LOW);
+	//digitalWrite(SUNXI_ICE_SELECT, HIGH);
 	digitalWrite(SUNXI_ICE_CS, HIGH);
 	digitalWrite(SUNXI_ICE_CLK, LOW);
 	digitalSync(100);
@@ -254,13 +254,13 @@ void prog_flashmem(int pageoffset)
 {
 	pinMode(SUNXI_ICE_CLK,     OUTPUT);
 	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
-	pinMode(LOAD_FROM_FLASH, OUTPUT);
+	//pinMode(LOAD_FROM_FLASH, OUTPUT);
 	pinMode(SUNXI_ICE_CS,      OUTPUT);
-	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
+	//pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	// connect flash to Raspi
-	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(SUNXI_ICE_SELECT, HIGH);
+	//digitalWrite(LOAD_FROM_FLASH, LOW);
+	//digitalWrite(SUNXI_ICE_SELECT, HIGH);
 	digitalWrite(SUNXI_ICE_CS, HIGH);
 	digitalWrite(SUNXI_ICE_CLK, LOW);
 	digitalSync(100);
@@ -341,17 +341,23 @@ void prog_flashmem(int pageoffset)
 	spi_end();
 }
 
+void ice_reset()
+{
+	pinMode(SUNXI_ICE_CRESET,      OUTPUT);
+	digitalWrite(SUNXI_ICE_CRESET, LOW);
+}
+
 void read_flashmem(int n)
 {
 	pinMode(SUNXI_ICE_CLK,     OUTPUT);
 	pinMode(SUNXI_ICE_MOSI,    OUTPUT);
-	pinMode(LOAD_FROM_FLASH, OUTPUT);
+	//pinMode(LOAD_FROM_FLASH, OUTPUT);
 	pinMode(SUNXI_ICE_CS,      OUTPUT);
-	pinMode(SUNXI_ICE_SELECT,  OUTPUT);
+	//pinMode(SUNXI_ICE_SELECT,  OUTPUT);
 
 	// connect flash to Raspi
-	digitalWrite(LOAD_FROM_FLASH, LOW);
-	digitalWrite(SUNXI_ICE_SELECT, HIGH);
+	//digitalWrite(LOAD_FROM_FLASH, LOW);
+	//digitalWrite(SUNXI_ICE_SELECT, HIGH);
 	digitalWrite(SUNXI_ICE_CS, HIGH);
 	digitalWrite(SUNXI_ICE_CLK, LOW);
 	digitalSync(100);
@@ -783,10 +789,10 @@ void reset_inout()
 	pinMode(SUNXI_ICE_CDONE,   INPUT);
 	pinMode(SUNXI_ICE_MOSI,    INPUT);
 	pinMode(SUNXI_ICE_MISO,    INPUT);
-	pinMode(LOAD_FROM_FLASH,   INPUT);
+	//pinMode(LOAD_FROM_FLASH,   INPUT);
 	pinMode(SUNXI_ICE_CRESET,  INPUT);
 	pinMode(SUNXI_ICE_CS,      INPUT);
-	pinMode(SUNXI_ICE_SELECT,  INPUT);
+	//pinMode(SUNXI_ICE_SELECT,  INPUT);
 
 	pinMode(SUNXI_D8, INPUT);
 	pinMode(SUNXI_D7, INPUT);
@@ -948,6 +954,7 @@ int main(int argc, char **argv)
 	if (mode == 'f') {
 		wiringSunxiSetup();
 		reset_inout();
+		ice_reset();
 		prog_flashmem(pageoffset);
 		reset_inout();
 	}
@@ -955,6 +962,7 @@ int main(int argc, char **argv)
 	if (mode == 'F') {
 		wiringSunxiSetup();
 		reset_inout();
+		ice_reset();
 		read_flashmem(n);
 		reset_inout();
 	}
