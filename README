@@ -1,29 +1,83 @@
 
       *********************************************************
-      * awProg -- Programmer and Debug Tool for SPI FPGA      *
+      * programmer -- Programmer and Debug Tool for SPI FPGA      *
       *********************************************************
 
-this started from icoprog for Raspi
+this application borrowed code from icoprog (for Raspi WiringPi)
+	git clone https://github.com/cliffordwolf/icotools.git
 
-but i trashed away all the stuff about WiringPi and just support plain GPIO
+i used direct memory map access for GPIO I/O, suitable for A10 A20 Allwinner
 
-to make compatible with Allwinner generic board.
 
-* first target FPGA is upduino:
+* first target FPGA is upduino: http://gnarlygrey.atspace.cc/development-platform.html#upduino
+
+= use cases
+
+i tested the following use case:
+* upload bitstream to SRAM (volatile test)
+* upload bitstream to NOR FLASH (and then execute from there, at each reset)
+* download content from NOR FLASH (amazing data, inside..)
+* reset the ICE (with start from flash if closed jumper and FLASH with bistream)
+
+= setup
+these are the steps to connect the upduino to our sunxi board:
+* find the GPIO on the sunxi board and connect
+* connect the 5v to a 5v of main board,
+* close the jumper to make the ICE SS connected to flash CS
+
+= allwinner GPIO =
+currently the GPIO are hardcoded in the linSunxi.h, sorry, they are just 6 pins:
+
+ #  define SUNXI_ICE_CS          PD0  // U14-1  LCD0-D0 white
+ #  define SUNXI_ICE_MOSI        PD1  // U14-4  LCD0-D1 grey
+ #  define SUNXI_ICE_CLK         PD2  // U14-3  LCD0-D2 purple
+ #  define SUNXI_ICE_MISO        PD3  // U14-6  LCD0-D3 blue
+ #  define SUNXI_ICE_CRESET      PD4  // U14-5  LCD0-D4 green
+ #  define SUNXI_ICE_CDONE       PD5  // U14-8  LCD0-D5 yellow
+
+you can of course change the define with your own settings. the most of the pins are supported in the later setting, follow the code to see with GPIO banks are supported, eventually
 
 = upduino connection
 
-these are the GPIO used:
+these are the GPIO used, and other connections
+
+JP1-2 the negative RESET pin of the iCE40 FPGA (so sw can drive to ground to keep the iCE40 RESET sometimes)
+
+JP2 the main 2x6, 5 out of 6 pins are connected, 3v3 is not connected because we prefer to power on the 5V pin for LED brighter!
 
 * CLK
 * RESET (active low)
-* MISO (input)
+* MISO (input for flash, or output for SRAM on ICE40)
 * MOSI
+* SS for select both on flash and on ICE40
 
+the coupling with the GPIO from the allwinner board is pretty straighforward..
 
+the last IMPORTANT connection is closing the jumper on the left of the JP2 so the iCE40 and the main programming connector can both drive (when needed) the Chip select of the FLASH chip.
 
-= stuff from original icoprog of icotools:
+= test
+here the test i made and the one you can try too..
 
-	git clone https://github.com/cliffordwolf/icotools.git
-	cd icotools/icoprog && make install
+* program the iCE40 on SRAM:
+ ./programmer -p < RED_slow.bin
+
+* reset the iCE40: 
+ ./programmer -R
+
+if there's a bitstream on the flash
+
+* read the flash and save the content, it's a 4MB so this is the number (mine had some funny content..):
+ ./programmer -F 4194304 > flashUpduino.bitmap
+
+* write the flash with a bitstream:
+ ./programmer -f < RGB_FAST.bin 
+
+i've put two test bitstream one with fast blinking and one with slow, so you can test easily when the FPGA is executing a bitstream from flash or from SRAM.
+
+= final notes
+the bitstream as created with iceCube2 as actually the free toolchain is not supporting this FPGA iCE40UP5K
+
+the led example is the one from the UPDUINO page, above
+
+if you look at the source code, there's still some "cruft" about a parallel 8 bit channel between host and FPGA. i left it because i'm thinking to support it on Allwinneer gears too.
 
